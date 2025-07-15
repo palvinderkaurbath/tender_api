@@ -233,75 +233,7 @@ def get_master_tenders_for_client():
         cursor.close()
         conn.close()
 
-@app.route("/general-search", methods=["POST", "OPTIONS"])
-def general_search():
-    if request.method == "OPTIONS":
-        return '', 200
 
-    data = request.get_json()
-    if not data or "keywords" not in data:
-        return jsonify({"error": "'keywords' field is required"}), 400
-
-    keyword_phrases = data.get("keywords", [])
-    state = data.get("state")  # optional
-
-    if not keyword_phrases or len(keyword_phrases) != 1:
-        return jsonify({"error": "'keywords' must contain exactly one phrase"}), 400
-
-    phrase = keyword_phrases[0].strip().lower()
-
-    STOPWORDS = {
-        "the", "a", "an", "of", "for", "in", "to", "and", "with",
-        "on", "by", "at", "from", "is", "this", "that", "as", "be", "are", "it"
-    }
-    search_words = [word for word in phrase.split() if word not in STOPWORDS]
-    if not search_words:
-        return jsonify({"error": "No valid searchable words after removing stopwords"}), 400
-
-    like_clauses = " OR ".join(["LOWER(bid_item_desc) LIKE %s" for _ in search_words])
-    values = [f"%{word}%" for word in search_words]
-
-    query = f"""
-        SELECT *
-        FROM tenderalert.master_table
-        WHERE ({like_clauses})
-          AND bid_end_date > NOW()
-    """
-    if state:
-        query += " AND LOWER(location_state) = %s"
-        values.append(state.lower())
-    query += " LIMIT 500"
-
-    conn = None
-    cursor = None
-    try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute(query, values)
-        rows = cursor.fetchall()
-
-        enriched = []
-        for row in rows:
-            desc = row.get("bid_item_desc", "").lower()
-            matched = sum(1 for word in search_words if word in desc)
-            percent = round((matched / len(search_words)) * 100, 2)
-            row["match_percent"] = percent
-            enriched.append(row)
-
-        enriched.sort(key=lambda x: x["match_percent"], reverse=True)
-        return jsonify({"results": enriched})
-
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-    finally:
-        if cursor:
-            cursor.close()
-        if conn:
-            conn.close()
-
-
-
-'''
 @app.route("/general-search", methods=["POST", "OPTIONS"])
 def general_search():
     if request.method == "OPTIONS":
@@ -377,7 +309,6 @@ def general_search():
     finally:
         cursor.close()
         conn.close()
-'''
 
 if __name__ == "__main__":
     PORT = int(os.environ.get("PORT", 5000))
