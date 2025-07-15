@@ -3,14 +3,19 @@ import pymysql
 import os
 from datetime import datetime
 from flask_cors import CORS
-from config import DB_CONFIG
+
 
 
 app = Flask(__name__)
 CORS(app)
 
-def get_db_connection():
-    return pymysql.connect(**DB_CONFIG)
+DB_CONFIG = {
+    'host': os.environ.get('DB_HOST', 'localhost'),
+    'user': os.environ.get('DB_USER', 'root'),
+    'password': os.environ.get('DB_PASSWORD', 'admin'),
+    'database': os.environ.get('DB_NAME', 'tenderalert'),
+    'cursorclass': pymysql.cursors.DictCursor,
+}
 
 @app.route("/db-check")
 def db_check():
