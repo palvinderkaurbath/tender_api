@@ -10,9 +10,9 @@ app = Flask(__name__)
 CORS(app)
 
 DB_CONFIG = {
-    'host': os.environ.get('DB_HOST', '154.61.74.229'),
-    'user': os.environ.get('DB_USER', 'remote_user2'),
-    'password': os.environ.get('DB_PASSWORD', 'Cadabraa2024'),
+    'host': os.environ.get('DB_HOST', 'localhost'),
+    'user': os.environ.get('DB_USER', 'root'),
+    'password': os.environ.get('DB_PASSWORD', 'admin'),
     'database': os.environ.get('DB_NAME', 'tenderalert'),
     'cursorclass': __import__('pymysql').cursors.DictCursor,
 }
@@ -247,7 +247,7 @@ def general_search():
 
 
     keyword_phrases = data.get("keywords", [])
-    state = data.get("state")  # optional
+    states = data.get("state")  # optional
 
     # ✅ Validate input
     if not keyword_phrases or len(keyword_phrases) != 1:
@@ -278,9 +278,14 @@ def general_search():
         WHERE ({like_clauses})
           AND bid_end_date > NOW()
     """
-    if state:
-        query += " AND LOWER(location_state) = %s"
-        values.append(state.lower())
+    # if state:
+    #   query += " AND LOWER(location_state) = %s"
+    #   values.append(state.lower())
+
+    if states and isinstance(states, list) and len(states) > 0:
+        state_clauses = " OR ".join(["LOWER(location_state) = %s" for _ in states])
+        query += f" AND ({state_clauses})"
+        values.extend([state.lower() for state in states])
 
     query += " LIMIT 500"
 
