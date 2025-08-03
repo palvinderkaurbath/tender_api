@@ -3,22 +3,18 @@ import pymysql
 import os
 from datetime import datetime
 from flask_cors import CORS
+from config import DB_CONFIG 
 
 
 
 app = Flask(__name__)
 CORS(app)
 
-DB_CONFIG = {
-    'host': os.environ.get('DB_HOST', 'localhost'),
-    'user': os.environ.get('DB_USER', 'root'),
-    'password': os.environ.get('DB_PASSWORD', 'admin'),
-    'database': os.environ.get('DB_NAME', 'tenderalert'),
-    'cursorclass': __import__('pymysql').cursors.DictCursor,
-}
 
 def get_db_connection():
     return pymysql.connect(**DB_CONFIG)
+
+
 
 @app.route("/db-check")
 def db_check():
@@ -27,15 +23,19 @@ def db_check():
         cursor = conn.cursor()
         cursor.execute("SELECT 1")
         result = cursor.fetchone()
+        print("✅ DB Connection Successful:", result)  # 👈 prints to terminal
         cursor.close()
         conn.close()
         return f"DB Connected! Result: {result}", 200
     except Exception as e:
+        print("❌ DB Connection Failed:", e)  # 👈 prints error to terminal
         return f"DB Connection Error: {e}", 500
+
 
 @app.route("/", methods=["GET"])
 def health_check():
     return "API is alive", 200
+
 
 # --- Register or Insert Client ---
 @app.route("/register-client", methods=["POST"])
@@ -197,7 +197,6 @@ def get_client_matches():
         conn.close()
 
 
-
 @app.route("/client-master-tenders", methods=["POST"])
 def get_master_tenders_for_client():
     data = request.get_json()
@@ -210,17 +209,26 @@ def get_master_tenders_for_client():
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        # Only select relevant columns and exclude 'id'
         cursor.execute("""
             SELECT 
-                m.tgo_id, m.bid_id, m.bid_item_desc, m.bid_link, m.bid_qty,
-                m.bid_end_date, m.dept, m.location_city, m.location_pincode,
-                m.location_state, m.source_id, mtm.score, mtm.matched_keyword
+                m.tgo_id,
+                m.bid_id,
+                m.description,
+                m.source_link,
+                m.quantity,
+                m.submit_end,
+                m.dept,
+                m.city,
+                m.pincode,
+                m.state,
+                m.source_id,
+                mtm.score,
+                mtm.matched_keyword
             FROM master_table m
-            JOIN master_tender_match mtm ON m.id = mtm.tender_id
+            JOIN master_tender_match mtm ON m.tgo_id = mtm.tgo_id
             WHERE mtm.client_id = %s
-              AND m.bid_end_date > NOW()
-            ORDER BY m.bid_end_date ASC
+              AND m.submit_end > NOW()
+            ORDER BY m.submit_end ASC
         """, (client_id,))
 
         rows = cursor.fetchall()
@@ -232,6 +240,9 @@ def get_master_tenders_for_client():
     finally:
         cursor.close()
         conn.close()
+
+
+
 
 
 @app.route("/general-search", methods=["POST", "OPTIONS"])
@@ -268,22 +279,22 @@ def general_search():
         return jsonify({"error": "No valid searchable words after removing stopwords"}), 400
 
     # ✅ Prepare SQL LIKE conditions
-    like_clauses = " OR ".join(["LOWER(bid_item_desc) LIKE %s" for _ in search_words])
+    like_clauses = " OR ".join(["LOWER(description) LIKE %s" for _ in search_words])
     values = [f"%{word}%" for word in search_words]
 
     # ✅ SQL query
     query = f"""
         SELECT *
-        FROM tenderalert.master_table
+        FROM master_table
         WHERE ({like_clauses})
-          AND bid_end_date > NOW()
+          AND submit_end > NOW()
     """
     # if state:
     #   query += " AND LOWER(location_state) = %s"
     #   values.append(state.lower())
 
     if states and isinstance(states, list) and len(states) > 0:
-        state_clauses = " OR ".join(["LOWER(location_state) = %s" for _ in states])
+        state_clauses = " OR ".join(["LOWER(state) = %s" for _ in states])
         query += f" AND ({state_clauses})"
         values.extend([state.lower() for state in states])
 
@@ -298,7 +309,7 @@ def general_search():
         # ✅ Calculate match percentage
         enriched = []
         for row in rows:
-            desc = row.get("bid_item_desc", "").lower()
+            desc = row.get("description", "").lower()
             matched = sum(1 for word in search_words if word in desc)
             percent = round((matched / len(search_words)) * 100, 2)
             row["match_percent"] = percent
@@ -314,6 +325,8 @@ def general_search():
     finally:
         cursor.close()
         conn.close()
+
+
 
 if __name__ == "__main__":
     PORT = int(os.environ.get("PORT", 5000))
