@@ -7,7 +7,6 @@ __pycache__/
 *.pyc
 
 # Local environment configs
-config.py
 .env
 
 # IDE/editor/project files (optional, but recommended)

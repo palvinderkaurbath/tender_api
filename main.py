@@ -3,13 +3,22 @@ import pymysql
 import os
 from datetime import datetime
 from flask_cors import CORS
-from config import DB_CONFIG 
+from dotenv import load_dotenv
 
 
+load_dotenv()
 
 app = Flask(__name__)
 CORS(app)
 
+# ✅ DB config directly from environment
+DB_CONFIG = {
+    'host': os.environ.get('DB_HOST'),
+    'user': os.environ.get('DB_USER'),
+    'password': os.environ.get('DB_PASSWORD'),
+    'database': os.environ.get('DB_NAME'),
+    'cursorclass': pymysql.cursors.DictCursor,
+}
 
 def get_db_connection():
     return pymysql.connect(**DB_CONFIG)
