@@ -330,7 +330,7 @@ def general_search():
         return jsonify({"results": enriched})
 
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": str(e)}), 100
     finally:
         cursor.close()
         conn.close()
