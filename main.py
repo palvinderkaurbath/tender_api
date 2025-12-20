@@ -9,7 +9,17 @@ from dotenv import load_dotenv
 load_dotenv()
 
 app = Flask(__name__)
-CORS(app)
+
+CORS(
+    app,
+    supports_credentials=True,
+    origins=[
+        "https://controller.tendingo.com"
+    ]
+)
+
+
+
 
 # ✅ DB config directly from environment
 DB_CONFIG = {
