@@ -12,12 +12,8 @@ app = Flask(__name__)
 
 CORS(
     app,
-    supports_credentials=True,
-    origins=[
-        "https://controller.tendingo.com", 
-        "https://tendigo.com",
-         "https://tendervow.com"
-    ]
+    supports_credentials=False,
+    origins="*"
 )
 
 
