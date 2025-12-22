@@ -15,7 +15,8 @@ CORS(
     supports_credentials=True,
     origins=[
         "https://controller.tendingo.com", 
-        "https://tendigo.com"
+        "https://tendigo.com",
+         "https://tendervow.com"
     ]
 )
 
